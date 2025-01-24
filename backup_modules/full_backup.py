@@ -1,15 +1,19 @@
 import logging
+import os
 import threading
 from time import sleep
 import libvirt
 import lxml.etree as ET
 
-logging.basicConfig(
-    filename='/var/log/backup.log',
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
+def ensure_directory(path):
+    """Crea la carpeta si no existe."""
+    if not os.path.exists(path):
+        os.makedirs(path)
+        logging.info(f'Folder created: {path}')
+        return True
+    else:
+        logging.info(f'Folder created: {path}')
+        return False
 
 class FullBackupVM(threading.Thread):
     def __init__(self,domain, backup_dir):
@@ -24,6 +28,8 @@ class FullBackupVM(threading.Thread):
         logging.info(f'Starting full backup for VM: {self.domain.name()}')
         self.prepare_backup()
         self.perform_backup()
+        self.finish_backup()
+        logging.info(f'Full backup for VM: {self.domain.name()} completed')
         #self.cleanup_backup()
 
     def generate_backup_xml(self):
@@ -37,6 +43,7 @@ class FullBackupVM(threading.Thread):
         print("Generated backup XML:\n", self.backup_xml_string)
 
     def generate_checkpoint_xml(self):
+
         root = ET.Element("domaincheckpoint")
         description = ET.SubElement(root, "description")
         description.text = "Full backup for VM. 1st Checkpoint"
@@ -56,9 +63,9 @@ class FullBackupVM(threading.Thread):
         sleep(2)
         stats = self.domain.jobStats(1)
         if stats.get('success'):
-            logging.info(f"Backup completado con éxito para la VM: {self.domain.name()}")
+            logging.info(f"Backup domjob completado con éxito para la VM: {self.domain.name()}")
         else:
-            logging.error(f"Backup fallido para la VM: {self.domain.name()}")
+            logging.error(f"Backup domjob fallido para la VM: {self.domain.name()}")
 
     def prepare_backup(self):
         self.generate_backup_xml()
@@ -67,3 +74,13 @@ class FullBackupVM(threading.Thread):
     def perform_backup(self):
         self.domain.backupBegin(self.backup_xml_string, self.checkpoint_xml_string)
         self.monitor_backup()
+
+    def finish_backup(self):
+        checkpoint_dir = os.path.join(self.backup_dir, "checkpoints")
+        ensure_directory(checkpoint_dir)
+
+        checkpoint_id = str(max([int(checkpoint.getName()) for checkpoint in self.domain.listAllCheckpoints()]))
+        checkpoint_file = os.path.join(checkpoint_dir, f"checkpoint-{self.domain.name()}-{checkpoint_id}.xml")
+
+        with open(checkpoint_file, 'w') as f:
+            f.write(self.checkpoint_xml_string)

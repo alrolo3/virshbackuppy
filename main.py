@@ -1,7 +1,6 @@
 import libvirt
 import sys
 import os
-import threading
 import logging
 from datetime import datetime
 from backup_modules.full_backup import FullBackupVM
@@ -53,7 +52,6 @@ try:
             else:
                 backup_thread = IncBackupVM(domain, backup_dir)
             backup_thread.start()
-
 except libvirt.libvirtError:
     logging.error('Failed to find the domain')
     sys.exit(1)

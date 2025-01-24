@@ -16,10 +16,10 @@ class IncBackupVM(threading.Thread):
 
     def run(self):
         """Método que ejecuta el backup completo."""
-        print(f'Iniciando respaldo completo para {self.domain.name()}')
+        logging.info(f'Iniciando respaldo completo para {self.domain.name()}')
         self.prepare_backup()
         self.perform_backup()
-        print(f'Respaldo completo finalizado para {self.domain.name()}')
+        logging.info(f'Respaldo completo finalizado para {self.domain.name()}')
 
     def generate_backup_xml(self):
         root = ET.Element("domainbackup", mode="push")
